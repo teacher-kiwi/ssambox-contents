@@ -1,0 +1,28 @@
+# 콘텐츠 push 시 서버에 동기화 요청
+name: Sync to SsamBox Server
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "_shared/**"
+      - "_template/**"
+      - "README.md"
+      - ".github/**"
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 서버에 동기화 요청
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST "${{ secrets.SSAMBOX_SERVER_URL }}/api/sync/" \
+            -H "Authorization: Bearer ${{ secrets.SYNC_TOKEN }}")
+
+          if [ "$response" = "200" ]; then
+            echo "✅ 동기화 요청 성공"
+          else
+            echo "❌ 동기화 요청 실패 (HTTP $response)"
+            exit 1
+          fi

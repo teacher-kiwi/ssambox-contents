@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>태양계 시뮬레이션 — 쌤박스</title>
+    <link rel="stylesheet" href="../_shared/css/ssambox-common.css">
+    <script src="https://cdn.jsdelivr.net/npm/p5@1.11.3/lib/p5.min.js"></script>
+    <style>
+        .planet-tooltip {
+            position: fixed;
+            background: rgba(10, 10, 26, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(76, 201, 240, 0.3);
+            border-radius: 10px;
+            padding: 12px 16px;
+            pointer-events: none;
+            z-index: 800;
+            opacity: 0;
+            transform: translateY(8px);
+            transition: opacity 0.25s ease, transform 0.25s ease;
+            max-width: 240px;
+        }
+        .planet-tooltip--visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .planet-tooltip__name {
+            font-size: 15px;
+            font-weight: 700;
+            color: #4cc9f0;
+            margin-bottom: 4px;
+        }
+        .planet-tooltip__info {
+            font-size: 11px;
+            color: rgba(255,255,255,0.6);
+            line-height: 1.6;
+            white-space: pre-line;
+        }
+    </style>
+</head>
+<body>
+    <div class="ssambox-loading" id="ssambox-loading">
+        <div class="ssambox-loading__spinner"></div>
+        <p class="ssambox-loading__text">태양계를 불러오는 중...</p>
+    </div>
+
+    <div id="ssambox-canvas-container"></div>
+    <div class="planet-tooltip" id="planet-tooltip">
+        <div class="planet-tooltip__name" id="tooltip-name"></div>
+        <div class="planet-tooltip__info" id="tooltip-info"></div>
+    </div>
+
+    <script src="../_shared/js/ssambox-common.js"></script>
+
+    <script>
+    // === 태양계 시뮬레이션 ===
+    SsamBox.init({ title: '태양계 시뮬레이션' });
+
+    var zoomLevel = 1;
+    var minZoom = 0.3;
+    var maxZoom = 3;
+    var offsetX = 0;
+    var offsetY = 0;
+    var isDragging = false;
+    var dragStartX = 0;
+    var dragStartY = 0;
+    var dragOffsetX = 0;
+    var dragOffsetY = 0;
+
+    // 별 배경
+    var starField = [];
+    var numStars = 400;
+
+    // 행성 데이터
+    var planets = [
+        {
+            name: '수성', nameEn: 'Mercury',
+            distance: 60, size: 5, speed: 0.04,
+            color: [180, 180, 180], angle: 0,
+            info: '태양에서 가장 가까운 행성\n지름: 4,879 km\n공전 주기: 88일'
+        },
+        {
+            name: '금성', nameEn: 'Venus',
+            distance: 90, size: 8, speed: 0.015,
+            color: [255, 198, 73], angle: 0.5,
+            info: '가장 뜨거운 행성 (표면 약 465°C)\n지름: 12,104 km\n공전 주기: 225일'
+        },
+        {
+            name: '지구', nameEn: 'Earth',
+            distance: 130, size: 9, speed: 0.01,
+            color: [100, 180, 255], angle: 1.0,
+            info: '우리가 사는 행성\n지름: 12,756 km\n공전 주기: 365일'
+        },
+        {
+            name: '화성', nameEn: 'Mars',
+            distance: 170, size: 7, speed: 0.008,
+            color: [255, 100, 60], angle: 2.0,
+            info: '붉은 행성\n지름: 6,792 km\n공전 주기: 687일'
+        },
+        {
+            name: '목성', nameEn: 'Jupiter',
+            distance: 240, size: 22, speed: 0.004,
+            color: [255, 180, 120], angle: 0.3,
+            info: '태양계에서 가장 큰 행성\n지름: 142,984 km\n공전 주기: 12년'
+        },
+        {
+            name: '토성', nameEn: 'Saturn',
+            distance: 310, size: 18, speed: 0.003,
+            color: [240, 210, 150], angle: 1.5,
+            info: '아름다운 고리를 가진 행성\n지름: 120,536 km\n공전 주기: 29년'
+        },
+        {
+            name: '천왕성', nameEn: 'Uranus',
+            distance: 370, size: 13, speed: 0.002,
+            color: [150, 220, 240], angle: 3.0,
+            info: '옆으로 누워서 도는 행성\n지름: 51,118 km\n공전 주기: 84년'
+        },
+        {
+            name: '해왕성', nameEn: 'Neptune',
+            distance: 420, size: 12, speed: 0.0015,
+            color: [60, 100, 255], angle: 4.5,
+            info: '태양에서 가장 먼 행성\n지름: 49,528 km\n공전 주기: 165년'
+        }
+    ];
+
+    var hoveredPlanet = null;
+    var tooltipEl = null;
+    var tooltipNameEl = null;
+    var tooltipInfoEl = null;
+
+    function setup() {
+        var canvas = createCanvas(windowWidth, windowHeight);
+        canvas.parent('ssambox-canvas-container');
+
+        tooltipEl = document.getElementById('planet-tooltip');
+        tooltipNameEl = document.getElementById('tooltip-name');
+        tooltipInfoEl = document.getElementById('tooltip-info');
+
+        // 별 생성
+        for (var i = 0; i < numStars; i++) {
+            starField.push({
+                x: random(-1200, 1200),
+                y: random(-800, 800),
+                size: random(0.5, 2.5),
+                brightness: random(100, 255),
+                twinkleSpeed: random(0.01, 0.05)
+            });
+        }
+    }
+
+    function draw() {
+        background(10, 10, 26);
+
+        var cx = width / 2 + offsetX;
+        var cy = height / 2 + offsetY;
+
+        push();
+        translate(cx, cy);
+        scale(zoomLevel);
+
+        drawStarField();
+        drawOrbits();
+        drawSun();
+
+        hoveredPlanet = null;
+        for (var i = 0; i < planets.length; i++) {
+            drawPlanet(planets[i]);
+        }
+
+        pop();
+
+        drawGuide();
+        updateTooltip();
+    }
+
+    function drawStarField() {
+        noStroke();
+        for (var i = 0; i < starField.length; i++) {
+            var s = starField[i];
+            var tw = sin(frameCount * s.twinkleSpeed) * 50 + s.brightness;
+            fill(255, 255, 255, tw);
+            circle(s.x, s.y, s.size);
+        }
+    }
+
+    function drawOrbits() {
+        noFill();
+        strokeWeight(0.5);
+        for (var i = 0; i < planets.length; i++) {
+            stroke(255, 255, 255, 20);
+            ellipse(0, 0, planets[i].distance * 2, planets[i].distance * 2);
+        }
+    }
+
+    function drawSun() {
+        noStroke();
+        // 태양 글로우 (외곽부터 안쪽)
+        for (var r = 50; r > 0; r -= 2) {
+            var alpha = map(r, 0, 50, 100, 0);
+            fill(255, 200, 50, alpha);
+            circle(0, 0, r * 2);
+        }
+        // 코로나 미세 펄스
+        var pulse = sin(frameCount * 0.03) * 3;
+        fill(255, 180, 30, 15);
+        circle(0, 0, 110 + pulse);
+        // 태양 본체
+        fill(255, 220, 80);
+        circle(0, 0, 40);
+        // 태양 코어
+        fill(255, 255, 200);
+        circle(0, 0, 20);
+    }
+
+    function drawPlanet(p) {
+        p.angle += p.speed;
+
+        var px = cos(p.angle) * p.distance;
+        var py = sin(p.angle) * p.distance;
+
+        // 화면 좌표 변환 (호버 감지용)
+        var screenX = (px * zoomLevel) + width / 2 + offsetX;
+        var screenY = (py * zoomLevel) + height / 2 + offsetY;
+        var screenSize = p.size * 2 * zoomLevel;
+
+        var d = dist(mouseX, mouseY, screenX, screenY);
+        if (d < max(screenSize, 15)) {
+            hoveredPlanet = p;
+            hoveredPlanet._sx = screenX;
+            hoveredPlanet._sy = screenY;
+        }
+
+        push();
+        translate(px, py);
+
+        noStroke();
+        // 글로우
+        fill(p.color[0], p.color[1], p.color[2], 30);
+        circle(0, 0, p.size * 4);
+        // 본체
+        fill(p.color[0], p.color[1], p.color[2]);
+        circle(0, 0, p.size * 2);
+
+        // 토성 고리
+        if (p.nameEn === 'Saturn') {
+            noFill();
+            stroke(p.color[0], p.color[1], p.color[2], 120);
+            strokeWeight(2);
+            ellipse(0, 0, p.size * 4.5, p.size * 1.5);
+            stroke(p.color[0], p.color[1], p.color[2], 60);
+            strokeWeight(1.5);
+            ellipse(0, 0, p.size * 5.5, p.size * 1.8);
+        }
+
+        // 지구의 달
+        if (p.nameEn === 'Earth') {
+            var moonAngle = frameCount * 0.05;
+            var moonX = cos(moonAngle) * 18;
+            var moonY = sin(moonAngle) * 18;
+            noStroke();
+            fill(200, 200, 200);
+            circle(moonX, moonY, 3);
+        }
+
+        // 호버 하이라이트
+        if (hoveredPlanet === p) {
+            noFill();
+            stroke(255, 255, 255, 60);
+            strokeWeight(1.5);
+            circle(0, 0, p.size * 3);
+        }
+
+        // 행성 이름
+        var labelSize = max(10, 11 / zoomLevel);
+        noStroke();
+        fill(255, 255, 255, hoveredPlanet === p ? 255 : 140);
+        textAlign(CENTER, TOP);
+        textSize(labelSize);
+        text(p.name, 0, p.size + 6);
+
+        pop();
+    }
+
+    function drawGuide() {
+        noStroke();
+        fill(255, 255, 255, 50);
+        textAlign(LEFT, TOP);
+        textSize(11);
+        text('🖱️ 드래그: 이동  |  스크롤: 확대/축소  |  행성에 마우스를 올려보세요', 16, 16);
+    }
+
+    function updateTooltip() {
+        if (hoveredPlanet && tooltipEl) {
+            tooltipNameEl.textContent = hoveredPlanet.name + ' (' + hoveredPlanet.nameEn + ')';
+            tooltipInfoEl.textContent = hoveredPlanet.info;
+            tooltipEl.classList.add('planet-tooltip--visible');
+
+            var tx = hoveredPlanet._sx + 20;
+            var ty = hoveredPlanet._sy - 30;
+            var rect = tooltipEl.getBoundingClientRect();
+            if (tx + rect.width > window.innerWidth - 10) {
+                tx = hoveredPlanet._sx - rect.width - 20;
+            }
+            if (ty + rect.height > window.innerHeight - 60) {
+                ty = window.innerHeight - rect.height - 60;
+            }
+            if (ty < 10) ty = 10;
+            tooltipEl.style.left = tx + 'px';
+            tooltipEl.style.top = ty + 'px';
+            cursor(HAND);
+        } else {
+            if (tooltipEl) tooltipEl.classList.remove('planet-tooltip--visible');
+            cursor(ARROW);
+        }
+    }
+
+    // 줌
+    function mouseWheel(event) {
+        var zoomDelta = -event.delta * 0.001;
+        zoomLevel = constrain(zoomLevel + zoomDelta, minZoom, maxZoom);
+        return false;
+    }
+
+    // 드래그 이동
+    function mousePressed() {
+        if (mouseButton === LEFT) {
+            isDragging = true;
+            dragStartX = mouseX;
+            dragStartY = mouseY;
+            dragOffsetX = offsetX;
+            dragOffsetY = offsetY;
+        }
+    }
+
+    function mouseDragged() {
+        if (isDragging) {
+            offsetX = dragOffsetX + (mouseX - dragStartX);
+            offsetY = dragOffsetY + (mouseY - dragStartY);
+        }
+    }
+
+    function mouseReleased() {
+        isDragging = false;
+    }
+
+    // 터치 지원
+    function touchStarted() {
+        if (touches.length === 1) {
+            isDragging = true;
+            dragStartX = touches[0].x;
+            dragStartY = touches[0].y;
+            dragOffsetX = offsetX;
+            dragOffsetY = offsetY;
+        }
+        return false;
+    }
+
+    function touchMoved() {
+        if (isDragging && touches.length === 1) {
+            offsetX = dragOffsetX + (touches[0].x - dragStartX);
+            offsetY = dragOffsetY + (touches[0].y - dragStartY);
+        }
+        return false;
+    }
+
+    function touchEnded() {
+        isDragging = false;
+        return false;
+    }
+
+    function windowResized() {
+        resizeCanvas(windowWidth, windowHeight);
+    }
+    </script>
+</body>
+</html>

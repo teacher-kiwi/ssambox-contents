@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>콘텐츠 제목 — 쌤박스</title>
+
+    <-1 1 2 쌤박스 공통 스타일 -->
+    <link rel="stylesheet" href="../_shared/css/ssambox-common.css">
+
+    <-1 1 2 라이브러리 (필요에 따라 선택) -->
+    <-1 1 2 p5.js -->
+    <script src="https://cdn.jsdelivr.net/npm/p5@1.11.3/lib/p5.min.js"></script>
+    <-1 1 2 three.js (필요 시 주석 해제) -->
+    <-1 1 2 <script src="https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.min.js"></script> -->
+</head>
+<body>
+    <-1 1 2 로딩 화면 -->
+    <div class="ssambox-loading" id="ssambox-loading">
+        <div class="ssambox-loading__spinner"></div>
+        <p class="ssambox-loading__text">콘텐츠를 불러오는 중...</p>
+    </div>
+
+    <-1 1 2 캔버스 컨테이너 -->
+    <div id="ssambox-canvas-container"></div>
+
+    <-1 1 2 쌤박스 공통 JS -->
+    <script src="../_shared/js/ssambox-common.js"></script>
+
+    <script>
+    // === 쌤박스 초기화 ===
+    SsamBox.init({ title: '콘텐츠 제목' });
+
+    // === p5.js 코드 ===
+    function setup() {
+        var canvas = createCanvas(windowWidth, windowHeight);
+        canvas.parent('ssambox-canvas-container');
+        background(10, 10, 26);
+    }
+
+    function draw() {
+        background(10, 10, 26);
+        // 여기에 콘텐츠 코드 작성
+    }
+
+    function windowResized() {
+        resizeCanvas(windowWidth, windowHeight);
+    }
+    </script>
+</body>
+</html>
