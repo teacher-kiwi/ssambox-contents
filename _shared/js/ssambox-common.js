@@ -59,10 +59,9 @@ var SsamBox = (function () {
       "</span>" +
       "</div>" +
       '<div class="ssambox-controls__right">' +
-      '<button class="ssambox-btn ssambox-btn--fullscreen" id="ssambox-fullscreen-btn" title="전체화면 (F)">' +
+      '<button class="ssambox-btn ssambox-btn--fullscreen" id="ssambox-fullscreen-btn" title="전체화면">' +
       '<span class="ssambox-btn__icon">⛶</span>' +
       "<span>전체화면</span>" +
-      '<span class="ssambox-btn__shortcut">F</span>' +
       "</button>" +
       "</div>";
 
@@ -82,22 +81,11 @@ var SsamBox = (function () {
    * 이벤트 바인딩
    */
   function _bindEvents() {
-    // 키보드: F키 전체화면 토글
-    document.addEventListener("keydown", function (e) {
-      if (e.key === "f" || e.key === "F") {
-        // input/textarea에서는 무시
-        if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")
-          return;
-        e.preventDefault();
-        toggleFullscreen();
-      }
-    });
-
     // 마우스 움직임: 컨트롤바 표시
     document.addEventListener("mousemove", _onMouseMove);
     document.addEventListener("touchstart", _onMouseMove, { passive: true });
 
-    // 전체화면 변경 감지 → 버튼 텍스트 업데이트
+    // 전체화면 변경 감지 → 버튼 텍스트 업데이트 + 캔버스 리사이즈
     document.addEventListener("fullscreenchange", _onFullscreenChange);
   }
 
@@ -172,6 +160,11 @@ var SsamBox = (function () {
     // 전체화면 전환 후 컨트롤바 잠시 표시
     _showControls();
     _startAutoHide();
+
+    // 캔버스 리사이즈 트리거 (레터박스 적용 후 캔버스가 새 크기를 반영하도록)
+    setTimeout(function () {
+      window.dispatchEvent(new Event("resize"));
+    }, 100);
   }
 
   /**
