@@ -131,7 +131,8 @@
     var tooltipInfoEl = null;
 
     function setup() {
-        var canvas = createCanvas(windowWidth, windowHeight);
+        var sz = SsamBox.getOptimalCanvasSize(16, 9);
+        var canvas = createCanvas(sz.width, sz.height);
         canvas.parent('ssambox-canvas-container');
 
         tooltipEl = document.getElementById('planet-tooltip');
@@ -371,7 +372,8 @@
     }
 
     function windowResized() {
-        resizeCanvas(windowWidth, windowHeight);
+        var sz = SsamBox.getOptimalCanvasSize(16, 9);
+        resizeCanvas(sz.width, sz.height);
     }
     </script>
 </body>
