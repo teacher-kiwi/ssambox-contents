@@ -44,8 +44,35 @@ var SsamBox = (function () {
     }
   }
 
+  /**
+   * 주어진 비율에 맞는 최적 캔버스 크기 계산
+   * iframe 뷰포트(window.innerWidth/Height)를 기준으로 letterbox 없이
+   * 비율을 유지하는 최대 픽셀 크기를 반환합니다.
+   *
+   * @param {number} ratioW - 가로 비율 (예: 16)
+   * @param {number} ratioH - 세로 비율 (예: 9)
+   * @returns {{ width: number, height: number }}
+   *
+   * 사용 예:
+   *   var sz = SsamBox.getOptimalCanvasSize(16, 9);
+   *   createCanvas(sz.width, sz.height);
+   */
+  function getOptimalCanvasSize(ratioW, ratioH) {
+    var ratio = ratioW / ratioH;
+    var vw = window.innerWidth;
+    var vh = window.innerHeight;
+    if (vw / vh > ratio) {
+      // 뷰포트가 더 넓음 → 높이 기준으로 맞춤
+      return { width: Math.floor(vh * ratio), height: vh };
+    } else {
+      // 뷰포트가 더 좁음(또는 같음) → 너비 기준으로 맞춤
+      return { width: vw, height: Math.floor(vw / ratio) };
+    }
+  }
+
   // 공개 API
   return {
     init: init,
+    getOptimalCanvasSize: getOptimalCanvasSize,
   };
 })();
