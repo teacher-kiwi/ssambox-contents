@@ -1,9 +1,21 @@
 ---
-title: 콘텐츠 제목
+# 콘텐츠의 고유 제목입니다.
+title: "콘텐츠 제목 입력"
+
+# 적용 학년입니다.(예: [3, 4] 또는 [5] 또는 [] 처럼 대괄호를 꼭 써주세요.)
 grade: [3, 4]
+
+# 과목 분류입니다.(structure.yaml에 있는 과목명과 똑같이 적어주세요.)
 subject: 과학
+
+# 과목의 영역 분류입니다.(structure.yaml에 있는 영역명과 똑같이 적어주세요.)
 area: 지구와 우주
-tags: [태그1, 태그2]
+
+# 검색이나 해시태그에 걸릴 단어들을 쉼표로 묶어주세요.
+tags: [태그1, 태그2, 태그3]
+
+# 콘텐츠의 종류를 5가지 영단어 중 하나로 적어주세요. 
+# (simulation / video / quiz / activity / other)
 content_type: simulation
 ---
 

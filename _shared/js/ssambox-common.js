@@ -6,26 +6,20 @@
  * 내부 콘텐츠는 "주어진 공간에 맞춰 렌더링하기"에만 집중합니다.
  *
  * 사용법:
- *   SsamBox.init({ title: '태양계 시뮬레이션' });
+ *   SsamBox.init();
+ *   if (SsamBox.lang === 'en') { ... }
  */
 
 var SsamBox = (function () {
   "use strict";
 
-  var config = {
-    title: "쌤박스 콘텐츠",
-  };
+  /** 현재 언어 (서버에서 ?lang=ko|en 으로 전달) */
+  var lang = new URLSearchParams(window.location.search).get("lang") || "ko";
 
   /**
    * 초기화 — 로딩 화면 제거
    */
-  function init(options) {
-    if (typeof options === "string") {
-      config.title = options;
-    } else if (options) {
-      config.title = options.title || config.title;
-    }
-
+  function init() {
     _hideLoading();
   }
 
@@ -72,6 +66,7 @@ var SsamBox = (function () {
 
   // 공개 API
   return {
+    lang: lang,
     init: init,
     getOptimalCanvasSize: getOptimalCanvasSize,
   };
