@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>우주의 크기 — 쌤박스</title>
+    <link rel="stylesheet" href="../_shared/css/ssambox-common.css">
+    <script src="https://cdn.jsdelivr.net/npm/p5@1.11.3/lib/p5.min.js"></script>
+    <style>
+    /* ============================================
+       Pixel Space — DOM 오버레이 스타일
+       ============================================ */
+
+    /* --- 미니맵 (상단 중앙) --- */
+    #ps-minimap {
+        position: fixed;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: min(90vw, 600px);
+        height: 32px;
+        background: rgba(10, 10, 26, 0.7);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(76, 201, 240, 0.2);
+        border-radius: 16px;
+        z-index: 600;
+        cursor: pointer;
+        overflow: hidden;
+    }
+    #ps-minimap canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+    }
+    #ps-minimap-viewport {
+        position: absolute;
+        top: 2px;
+        height: 28px;
+        background: rgba(76, 201, 240, 0.15);
+        border: 1px solid rgba(76, 201, 240, 0.4);
+        border-radius: 14px;
+        pointer-events: none;
+    }
+
+    /* --- 속도 컨트롤 (하단 중앙) --- */
+    #ps-speed-controls {
+        position: fixed;
+        bottom: 48px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 3px;
+        background: rgba(10, 10, 26, 0.75);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 24px;
+        padding: 4px;
+        z-index: 600;
+    }
+    .ps-speed-btn {
+        background: transparent;
+        color: rgba(255, 255, 255, 0.5);
+        border: none;
+        border-radius: 20px;
+        padding: 6px 12px;
+        font-size: 11px;
+        font-family: var(--ssambox-font);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1px;
+        white-space: nowrap;
+    }
+    .ps-speed-btn:hover { color: rgba(255,255,255,0.8); }
+    .ps-speed-btn--active {
+        background: rgba(76, 201, 240, 0.2);
+        color: #4cc9f0;
+    }
+    .ps-speed-btn__label { font-size: 9px; }
+
+    /* --- 눈금자 (하단 왼쪽) --- */
+    #ps-ruler {
+        position: fixed;
+        bottom: 10px;
+        left: 10px;
+        background: rgba(10, 10, 26, 0.6);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        padding: 6px 10px;
+        z-index: 600;
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.55);
+        line-height: 1.6;
+        font-family: var(--ssambox-font);
+    }
+
+    /* --- 속도 인디케이터 (하단 우측) --- */
+    #ps-speed-indicator {
+        position: fixed;
+        bottom: 10px;
+        right: 10px;
+        background: rgba(10, 10, 26, 0.6);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        padding: 6px 10px;
+        z-index: 600;
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.55);
+        text-align: right;
+        line-height: 1.6;
+        font-family: var(--ssambox-font);
+    }
+
+    /* --- 행성 설명 카드 (우측 슬라이드인) --- */
+    .ps-info-card {
+        position: fixed;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%) translateX(120%);
+        width: 240px;
+        background: rgba(10, 10, 26, 0.88);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(76, 201, 240, 0.3);
+        border-radius: 12px;
+        padding: 14px 16px;
+        z-index: 700;
+        transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        font-family: var(--ssambox-font);
+    }
+    .ps-info-card--visible {
+        transform: translateY(-50%) translateX(0);
+    }
+    .ps-info-card__header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+    .ps-info-card__dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+    .ps-info-card__name {
+        font-size: 15px;
+        font-weight: 700;
+        color: #4cc9f0;
+    }
+    .ps-info-card__body {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.75);
+        line-height: 1.7;
+        white-space: pre-line;
+        margin-bottom: 10px;
+    }
+    .ps-info-card__fun {
+        font-size: 11px;
+        color: rgba(76, 201, 240, 0.8);
+        line-height: 1.5;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        padding-top: 8px;
+    }
+
+    /* --- 엔딩 모달 --- */
+    .ps-ending-modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.88);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 900;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.6s ease;
+        font-family: var(--ssambox-font);
+    }
+    .ps-ending-modal--visible {
+        opacity: 1;
+        pointer-events: auto;
+    }
+    .ps-ending-modal__content {
+        background: rgba(10, 10, 26, 0.95);
+        border: 1px solid rgba(76, 201, 240, 0.3);
+        border-radius: 16px;
+        padding: 28px 24px;
+        max-width: 440px;
+        text-align: center;
+        max-height: 80vh;
+        overflow-y: auto;
+    }
+    .ps-ending-modal__content h2 {
+        color: #4cc9f0;
+        font-size: 20px;
+        margin: 0 0 14px 0;
+    }
+    .ps-ending-modal__content p {
+        font-size: 13px;
+        line-height: 1.8;
+        color: rgba(255, 255, 255, 0.8);
+        margin: 0 0 16px 0;
+        white-space: pre-line;
+    }
+    .ps-ending-modal__btn {
+        background: rgba(76, 201, 240, 0.2);
+        color: #4cc9f0;
+        border: 1px solid rgba(76, 201, 240, 0.4);
+        border-radius: 20px;
+        padding: 10px 24px;
+        font-size: 13px;
+        cursor: pointer;
+        font-family: var(--ssambox-font);
+        transition: all 0.2s ease;
+    }
+    .ps-ending-modal__btn:hover {
+        background: rgba(76, 201, 240, 0.35);
+    }
+
+    /* --- 모바일 대응 --- */
+    @media (max-width: 600px) {
+        .ps-info-card { width: 200px; padding: 10px 12px; right: 8px; }
+        .ps-info-card__body { font-size: 11px; }
+        #ps-speed-controls { bottom: 42px; }
+        .ps-speed-btn { padding: 5px 8px; font-size: 10px; }
+        #ps-ruler, #ps-speed-indicator { font-size: 10px; }
+        .ps-ending-modal__content { margin: 16px; padding: 20px 16px; }
+    }
+    </style>
+</head>
+<body>
+    <!-- 로딩 화면 -->
+    <div class="ssambox-loading" id="ssambox-loading">
+        <div class="ssambox-loading__spinner"></div>
+        <p class="ssambox-loading__text">우주를 불러오는 중...</p>
+    </div>
+
+    <!-- p5.js 캔버스 컨테이너 -->
+    <div id="ssambox-canvas-container"></div>
+
+    <!-- ===== DOM 오버레이 ===== -->
+
+    <!-- 미니맵 -->
+    <div id="ps-minimap">
+        <canvas id="ps-minimap-canvas"></canvas>
+        <div id="ps-minimap-viewport"></div>
+    </div>
+
+    <!-- 속도 컨트롤 -->
+    <div id="ps-speed-controls">
+        <button class="ps-speed-btn ps-speed-btn--active" data-mode="stopped">
+            <span class="ps-speed-btn__icon">⏹</span>
+            <span class="ps-speed-btn__label" data-i18n="stop"></span>
+        </button>
+        <button class="ps-speed-btn" data-mode="light">
+            <span class="ps-speed-btn__icon">1×</span>
+            <span class="ps-speed-btn__label" data-i18n="lightSpeed"></span>
+        </button>
+        <button class="ps-speed-btn" data-mode="100x">
+            <span class="ps-speed-btn__icon">100×</span>
+        </button>
+        <button class="ps-speed-btn" data-mode="1000x">
+            <span class="ps-speed-btn__icon">1000×</span>
+        </button>
+        <button class="ps-speed-btn" data-mode="10000x">
+            <span class="ps-speed-btn__icon">1만×</span>
+        </button>
+        <button class="ps-speed-btn" data-mode="warp">
+            <span class="ps-speed-btn__icon">⏭</span>
+            <span class="ps-speed-btn__label" data-i18n="warp"></span>
+        </button>
+    </div>
+
+    <!-- 눈금자 -->
+    <div id="ps-ruler">
+        <div id="ps-ruler-km"></div>
+        <div id="ps-ruler-au"></div>
+        <div id="ps-ruler-trips"></div>
+    </div>
+
+    <!-- 속도 인디케이터 -->
+    <div id="ps-speed-indicator">
+        <div id="ps-speed-value"></div>
+        <div id="ps-speed-comparison"></div>
+    </div>
+
+    <!-- 행성 설명 카드 -->
+    <div id="ps-info-card" class="ps-info-card">
+        <div class="ps-info-card__header">
+            <span class="ps-info-card__dot" id="ps-info-dot"></span>
+            <span class="ps-info-card__name" id="ps-info-name"></span>
+        </div>
+        <div class="ps-info-card__body" id="ps-info-body"></div>
+        <div class="ps-info-card__fun" id="ps-info-fun"></div>
+    </div>
+
+    <!-- 엔딩 모달 -->
+    <div id="ps-ending-modal" class="ps-ending-modal">
+        <div class="ps-ending-modal__content">
+            <h2 id="ps-ending-title"></h2>
+            <p id="ps-ending-text"></p>
+            <p id="ps-ending-voyager" style="font-size:11px; color:rgba(76,201,240,0.7);"></p>
+            <button class="ps-ending-modal__btn" id="ps-ending-restart" data-i18n="restart"></button>
+        </div>
+    </div>
+
+    <!-- 쌤박스 공통 JS -->
+    <script src="../_shared/js/ssambox-common.js"></script>
+
+    <script>
+    // ================================================================
+    //  Pixel Space — 태양계 실제 비율 시뮬레이션
+    //  기준: 달의 지름(3,474km) = 1 pixel
+    // ================================================================
+
+    SsamBox.init();
+
+    // ================================================================
+    //  Section 1: i18n 텍스트 사전
+    // ================================================================
+    var TEXT = {
+        loading:       { ko: '우주를 불러오는 중...', en: 'Loading the universe...' },
+        stop:          { ko: '정지', en: 'Stop' },
+        lightSpeed:    { ko: '광속', en: 'Light' },
+        warp:          { ko: '워프', en: 'Warp' },
+        fromSun:       { ko: '태양에서 ', en: 'From Sun: ' },
+        seoulBusan:    { ko: '서울↔부산 ', en: 'Seoul↔Busan ' },
+        roundTrips:    { ko: '번 왕복', en: ' round trips' },
+        stopped:       { ko: '정지', en: 'Stopped' },
+        restart:       { ko: '처음부터 다시', en: 'Start Over' },
+        introTitle:    { ko: '우주의 크기', en: 'The Scale of Space' },
+        introSub:      { ko: '만약 달이 1픽셀이라면...', en: 'If the Moon Were Only 1 Pixel...' },
+        introScroll:   { ko: '→ 스크롤하여 여행을 시작하세요', en: '→ Scroll to begin your journey' },
+        introScale:    { ko: '1픽셀 = 달의 지름 (3,474km)', en: '1 pixel = diameter of the Moon (3,474 km)' },
+        introMoon:     { ko: '← 이것이 달이에요', en: '← This is the Moon' },
+        endTitle:      { ko: '명왕성에 도착했습니다!', en: 'You have reached Pluto!' },
+        endText:       { ko: '여기까지 약 59억 km를 여행했어요.\n\n보이저 1호는 1977년에 출발하여\n지금도 태양계 바깥을 향해 날아가고 있어요.\n현재 태양에서 약 240억 km나 떨어져 있답니다.\n\n뉴호라이즌스는 2006년에 출발하여\n2015년에 명왕성을 지나갔어요.\n인류가 보낸 가장 빠른 탐사선이에요.\n\n우주는 정말 넓고,\n우리의 여행은 이제 시작이에요!',
+                         en: 'You traveled about 5.9 billion km.\n\nVoyager 1 launched in 1977 and is still\nflying beyond the solar system.\nIt is now about 24 billion km from the Sun.\n\nNew Horizons launched in 2006 and\nflew past Pluto in 2015.\nThe fastest spacecraft humanity has ever sent.\n\nSpace is truly vast —\nand our journey has only just begun!' },
+        endVoyager:    { ko: '🚀 보이저 1호의 현재 위치는\n이 시뮬레이션 화면의 약 4배 더 먼 곳이에요.', en: "🚀 Voyager 1's current position is\nabout 4 times farther than this entire simulation." },
+    };
+
+    function t(key) {
+        var entry = TEXT[key];
+        if (!entry) return key;
+        return entry[SsamBox.lang] || entry['ko'];
+    }
+
+    // ================================================================
+    //  Section 2: 천체 데이터 (실제 km 단위)
+    // ================================================================
+    var SOLAR_CONFIG = [
+        {
+            id: 'sun', name: { ko: '태양', en: 'Sun' },
+            diameterKm: 1392700, distanceFromSunKm: 0,
+            color: [255, 220, 80],
+            info: { ko: '태양은 태양계의 중심에 있는 항성이에요.\n지름이 지구의 약 109배나 되는\n거대한 불덩어리랍니다.\n표면 온도: 약 5,500°C',
+                    en: 'The Sun is the star at the center of\nour solar system.\nIts diameter is about 109 times Earth.\nSurface temperature: about 5,500°C' },
+            funFact: { ko: '💡 태양에서 지구까지 빛이 오는 데\n약 8분 20초가 걸려요!',
+                       en: '💡 Light from the Sun takes about\n8 minutes 20 seconds to reach Earth!' }
+        },
+        {
+            id: 'mercury', name: { ko: '수성', en: 'Mercury' },
+            diameterKm: 4879, distanceFromSunKm: 57910000,
+            color: [180, 180, 180],
+            info: { ko: '태양에서 가장 가까운 행성이에요.\n낮에는 430°C, 밤에는 -180°C로\n온도 차이가 가장 큰 행성이에요.',
+                    en: 'The closest planet to the Sun.\nDaytime: 430°C, Nighttime: -180°C\nThe biggest temperature swings of any planet.' },
+            funFact: { ko: '💡 수성의 1년은 지구의 88일밖에 안 돼요!',
+                       en: "💡 Mercury's year is only 88 Earth days!" }
+        },
+        {
+            id: 'venus', name: { ko: '금성', en: 'Venus' },
+            diameterKm: 12104, distanceFromSunKm: 108200000,
+            color: [255, 198, 73],
+            info: { ko: '태양계에서 가장 뜨거운 행성이에요.\n두꺼운 대기 때문에 표면 온도가 465°C나 돼요.\n"지구의 쌍둥이"라고도 불려요.',
+                    en: 'The hottest planet in the solar system.\nThick atmosphere keeps surface at 465°C.\nCalled "Earth\'s twin" due to similar size.' },
+            funFact: { ko: '💡 금성은 다른 행성과 반대 방향으로 자전해요!',
+                       en: '💡 Venus rotates in the opposite direction!' }
+        },
+        {
+            id: 'earth', name: { ko: '지구', en: 'Earth' },
+            diameterKm: 12756, distanceFromSunKm: 149600000,
+            color: [100, 180, 255],
+            info: { ko: '우리가 살고 있는 행성이에요!\n물과 대기가 있어 생명체가 살 수 있어요.\n달이라는 위성이 하나 있어요.',
+                    en: 'The planet we live on!\nWater and atmosphere support life.\nIt has one moon.' },
+            funFact: { ko: '💡 지구에서 달까지는 약 384,400km예요.\n이 시뮬레이션에서 약 110픽셀이에요!',
+                       en: '💡 Earth to Moon is about 384,400km.\nAbout 110 pixels in this simulation!' }
+        },
+        {
+            id: 'mars', name: { ko: '화성', en: 'Mars' },
+            diameterKm: 6792, distanceFromSunKm: 227940000,
+            color: [255, 100, 60],
+            info: { ko: '붉은 행성이라고 불려요.\n표면의 산화철(녹) 때문에 붉게 보여요.\n태양계에서 가장 높은 산인\n올림포스 산이 있어요.',
+                    en: 'Called the Red Planet.\nIron oxide (rust) makes it look red.\nHome to Olympus Mons —\nthe tallest mountain in the solar system.' },
+            funFact: { ko: '💡 올림포스 산의 높이는 약 22km로,\n에베레스트(8.8km)의 약 2.5배예요!',
+                       en: '💡 Olympus Mons is about 22km tall —\nroughly 2.5× Mt. Everest!' }
+        },
+        {
+            id: 'jupiter', name: { ko: '목성', en: 'Jupiter' },
+            diameterKm: 142984, distanceFromSunKm: 778330000,
+            color: [255, 180, 120],
+            info: { ko: '태양계에서 가장 큰 행성이에요.\n지구가 약 1,300개 들어갈 수 있어요!\n대적점이라는 거대한 폭풍이\n수백 년째 불고 있어요.',
+                    en: 'The largest planet in the solar system.\nAbout 1,300 Earths could fit inside!\nThe Great Red Spot is a giant storm\nraging for hundreds of years.' },
+            funFact: { ko: '💡 목성의 위성은 90개가 넘어요!',
+                       en: '💡 Jupiter has over 90 moons!' }
+        },
+        {
+            id: 'saturn', name: { ko: '토성', en: 'Saturn' },
+            diameterKm: 120536, distanceFromSunKm: 1433500000,
+            color: [240, 210, 150],
+            info: { ko: '아름다운 고리를 가진 행성이에요.\n고리는 얼음과 돌 조각으로 이루어져 있어요.\n밀도가 물보다 낮아서 물에 뜰 수 있어요!',
+                    en: 'A planet with beautiful rings.\nRings are made of ice and rock.\nIts density is lower than water — it could float!' },
+            funFact: { ko: '💡 토성의 고리 폭은 약 28만 km인데,\n두께는 겨우 10~100m예요!',
+                       en: "💡 Saturn's rings span 280,000km\nbut are only 10-100m thick!" }
+        },
+        {
+            id: 'uranus', name: { ko: '천왕성', en: 'Uranus' },
+            diameterKm: 51118, distanceFromSunKm: 2872500000,
+            color: [150, 220, 240],
+            info: { ko: '옆으로 누워서 도는 독특한 행성이에요.\n자전축이 거의 98도나 기울어져 있어요.\n메탄 가스 때문에 청록색으로 보여요.',
+                    en: 'Rotates on its side — axis tilted 98°.\nMethane gas gives it a blue-green color.' },
+            funFact: { ko: '💡 천왕성의 1년은 지구의 84년이에요!',
+                       en: '💡 One year on Uranus is 84 Earth years!' }
+        },
+        {
+            id: 'neptune', name: { ko: '해왕성', en: 'Neptune' },
+            diameterKm: 49528, distanceFromSunKm: 4495100000,
+            color: [60, 100, 255],
+            info: { ko: '태양계에서 가장 먼 행성이에요.\n태양계에서 가장 강한 바람이 불어요\n(시속 2,100km!).',
+                    en: 'The farthest planet from the Sun.\nStrongest winds in the solar system\n(2,100 km/h!).' },
+            funFact: { ko: '💡 해왕성은 수학 계산으로\n먼저 발견된 유일한 행성이에요!',
+                       en: '💡 Neptune was discovered by\nmathematical prediction!' }
+        },
+        {
+            id: 'pluto', name: { ko: '명왕성', en: 'Pluto' },
+            diameterKm: 2376, distanceFromSunKm: 5906400000,
+            color: [200, 180, 160],
+            info: { ko: '2006년까지 행성이었지만\n지금은 왜소행성이에요.\n하트 모양의 질소 얼음 평원이 있어요.',
+                    en: 'Was a planet until 2006 — now a dwarf planet.\nHas a heart-shaped nitrogen ice plain.' },
+            funFact: { ko: '💡 명왕성의 1년은 지구의 248년이에요!',
+                       en: "💡 One year on Pluto is 248 Earth years!" }
+        }
+    ];
+
+    // ================================================================
+    //  Section 3: 스케일 변환 시스템
+    // ================================================================
+    var SUN_OFFSET_X = 2000; // 인트로 영역 (태양 앞 여백)
+
+    var SCALE = {
+        FACTOR: 3474,
+        LIGHT_SPEED_KM_S: 299792.458,
+        SEOUL_BUSAN_ROUND_TRIP_KM: 800,
+        AU_KM: 149597870.7,
+        lightSpeedPxPerSec: 0,
+        lightSpeedPxPerFrame: 0,
+        totalUniverseWidth: 0,
+
+        init: function() {
+            this.lightSpeedPxPerSec = this.LIGHT_SPEED_KM_S / this.FACTOR;
+            this.lightSpeedPxPerFrame = this.lightSpeedPxPerSec / 60;
+        },
+        kmToPx: function(km) { return km / this.FACTOR; },
+        pxToKm: function(px) { return px * this.FACTOR; },
+        pxToAU: function(px) { return this.pxToKm(px) / this.AU_KM; },
+        pxToTrips: function(px) { return this.pxToKm(px) / this.SEOUL_BUSAN_ROUND_TRIP_KM; }
+    };
+
+    function precomputePositions() {
+        for (var i = 0; i < SOLAR_CONFIG.length; i++) {
+            var body = SOLAR_CONFIG[i];
+            body.diameterPx = SCALE.kmToPx(body.diameterKm);
+            body.radiusPx = body.diameterPx / 2;
+            body.positionX = SUN_OFFSET_X + SCALE.kmToPx(body.distanceFromSunKm);
+        }
+        var last = SOLAR_CONFIG[SOLAR_CONFIG.length - 1];
+        SCALE.totalUniverseWidth = last.positionX + 8000;
+    }
+
+    // ================================================================
+    //  Section 4: 가상 스크롤 엔진
+    // ================================================================
+    var scroll = {
+        currentX: 0,
+        velocity: 0,
+        targetVelocity: 0,
+        friction: 0.92,
+        maxManualSpeed: 600,
+        autoMode: 'stopped',
+        autoSpeedMultiplier: 0,
+        warpTarget: -1,
+        isDragging: false,
+        dragStartX: 0,
+        dragStartScrollX: 0,
+        lastDragPositions: []
+    };
+
+    var keysHeld = {};
+
+    function setAutoMode(mode) {
+        scroll.autoMode = mode;
+        var mult = { stopped: 0, light: 1, '100x': 100, '1000x': 1000, '10000x': 10000, warp: 0 };
+        scroll.autoSpeedMultiplier = mult[mode] || 0;
+        scroll.velocity = 0;
+
+        if (mode === 'warp') {
+            var centerX = scroll.currentX + width / 2;
+            for (var i = 0; i < SOLAR_CONFIG.length; i++) {
+                if (SOLAR_CONFIG[i].positionX > centerX + 100) {
+                    scroll.warpTarget = SOLAR_CONFIG[i].positionX;
+                    break;
+                }
+            }
+        }
+
+        var buttons = document.querySelectorAll('.ps-speed-btn');
+        buttons.forEach(function(btn) {
+            btn.classList.toggle('ps-speed-btn--active', btn.dataset.mode === mode);
+        });
+    }
+
+    function updateScroll() {
+        if (scroll.isDragging) return;
+
+        if (scroll.autoMode === 'warp' && scroll.warpTarget >= 0) {
+            var dx = scroll.warpTarget - scroll.currentX - width / 2;
+            if (abs(dx) < 3) {
+                scroll.currentX = scroll.warpTarget - width / 2;
+                setAutoMode('stopped');
+            } else {
+                scroll.currentX += dx * 0.06;
+            }
+        } else if (scroll.autoMode !== 'stopped') {
+            scroll.currentX += SCALE.lightSpeedPxPerFrame * scroll.autoSpeedMultiplier;
+        } else {
+            scroll.currentX += scroll.velocity;
+            scroll.velocity *= scroll.friction;
+            if (abs(scroll.velocity) < 0.1) scroll.velocity = 0;
+        }
+
+        scroll.currentX = constrain(scroll.currentX, 0, SCALE.totalUniverseWidth - width);
+    }
+
+    function processKeyInput() {
+        if (scroll.autoMode !== 'stopped') return;
+        var accel = 2.5;
+        if (keysHeld[RIGHT_ARROW]) scroll.velocity = min(scroll.velocity + accel, scroll.maxManualSpeed);
+        if (keysHeld[LEFT_ARROW]) scroll.velocity = max(scroll.velocity - accel, -scroll.maxManualSpeed);
+    }
+
+    // ================================================================
+    //  Section 5: 패럴랙스 스타필드 (타일 기반)
+    // ================================================================
+    var STAR_LAYERS = [
+        { count: 180, sizeRange: [0.5, 1.5], parallax: 0.02, brightness: [80, 170] },
+        { count: 80,  sizeRange: [1.0, 2.5], parallax: 0.05, brightness: [120, 210] },
+        { count: 35,  sizeRange: [1.5, 3.0], parallax: 0.10, brightness: [180, 255] }
+    ];
+    var STAR_TILE_W = 2000;
+
+    function drawStarField() {
+        noStroke();
+        for (var l = 0; l < STAR_LAYERS.length; l++) {
+            var cfg = STAR_LAYERS[l];
+            var ox = scroll.currentX * cfg.parallax;
+            var st = Math.floor(ox / STAR_TILE_W);
+            var et = Math.floor((ox + width) / STAR_TILE_W);
+
+            for (var ti = st; ti <= et; ti++) {
+                randomSeed(ti * 1000 + l * 137);
+                var tsx = ti * STAR_TILE_W - ox;
+                for (var s = 0; s < cfg.count; s++) {
+                    var sx = tsx + random(STAR_TILE_W);
+                    var sy = random(height);
+                    var sz = random(cfg.sizeRange[0], cfg.sizeRange[1]);
+                    var br = random(cfg.brightness[0], cfg.brightness[1]);
+                    var tw = sin(frameCount * 0.03 + (ti * 1000 + s) * 0.1) * 25;
+                    fill(255, 255, 255, br + tw);
+                    circle(sx, sy, sz);
+                }
+            }
+        }
+        randomSeed(frameCount);
+    }
+
+    // ================================================================
+    //  Section 6: 천체 렌더링
+    // ================================================================
+    function drawSolarBodies() {
+        var vl = scroll.currentX - 600;
+        var vr = scroll.currentX + width + 600;
+
+        for (var i = 0; i < SOLAR_CONFIG.length; i++) {
+            var body = SOLAR_CONFIG[i];
+            if (body.positionX + body.radiusPx < vl || body.positionX - body.radiusPx > vr) continue;
+
+            var sx = body.positionX - scroll.currentX;
+            var sy = height / 2;
+
+            if (body.id === 'sun') {
+                drawSun(sx, sy, body);
+            } else {
+                drawPlanet(sx, sy, body);
+            }
+        }
+    }
+
+    function drawSun(sx, sy, body) {
+        var r = body.radiusPx;
+        noStroke();
+
+        // 코로나 글로우
+        for (var g = r * 2.5; g > r; g -= 5) {
+            var a = map(g, r, r * 2.5, 35, 0);
+            fill(255, 200, 50, a);
+            circle(sx, sy, g * 2);
+        }
+
+        // 펄스
+        var pulse = sin(frameCount * 0.02) * 8;
+        fill(255, 180, 30, 12);
+        circle(sx, sy, (r + 15 + pulse) * 2);
+
+        // 본체 그라데이션
+        fill(255, 180, 50);
+        circle(sx, sy, r * 2);
+        fill(255, 220, 80);
+        circle(sx, sy, r * 1.6);
+        fill(255, 240, 150);
+        circle(sx, sy, r * 0.8);
+        fill(255, 255, 220);
+        circle(sx, sy, r * 0.4);
+
+        drawBodyLabel(sx, sy + r + 24, body);
+    }
+
+    function drawPlanet(sx, sy, body) {
+        var r = body.radiusPx;
+        var displayR = max(r, 1);
+        var markerR = max(18, r * 3);
+
+        // 타겟 마커 (가이드 원형)
+        noFill();
+        stroke(body.color[0], body.color[1], body.color[2], 35);
+        strokeWeight(1);
+        circle(sx, sy, markerR * 2);
+
+        // 펄싱 외곽 링
+        var pulseR = markerR + sin(frameCount * 0.05) * 4;
+        stroke(body.color[0], body.color[1], body.color[2], 18);
+        circle(sx, sy, pulseR * 2);
+
+        // 크로스헤어
+        stroke(body.color[0], body.color[1], body.color[2], 12);
+        strokeWeight(0.5);
+        line(sx, sy - markerR - 8, sx, sy - markerR - 25);
+        line(sx, sy + markerR + 8, sx, sy + markerR + 25);
+
+        // 글로우
+        noStroke();
+        fill(body.color[0], body.color[1], body.color[2], 25);
+        circle(sx, sy, max(displayR * 6, 10));
+
+        // 본체
+        fill(body.color[0], body.color[1], body.color[2]);
+        circle(sx, sy, max(displayR * 2, 2));
+
+        // 토성 고리
+        if (body.id === 'saturn') {
+            noFill();
+            stroke(body.color[0], body.color[1], body.color[2], 90);
+            strokeWeight(max(r * 0.15, 1.5));
+            ellipse(sx, sy, r * 5, r * 1.5);
+            stroke(body.color[0], body.color[1], body.color[2], 45);
+            strokeWeight(max(r * 0.1, 1));
+            ellipse(sx, sy, r * 6, r * 1.8);
+        }
+
+        drawBodyLabel(sx, sy + markerR + 35, body);
+    }
+
+    function drawBodyLabel(x, y, body) {
+        var lang = SsamBox.lang;
+        noStroke();
+        fill(255, 255, 255, 170);
+        textAlign(CENTER, TOP);
+        textSize(12);
+        text(body.name[lang], x, y);
+
+        if (body.id !== 'sun') {
+            fill(255, 255, 255, 70);
+            textSize(9);
+            var km = body.distanceFromSunKm;
+            var label;
+            if (km >= 1e9) label = (km / 1e9).toFixed(1) + (lang === 'ko' ? '십억 km' : 'B km');
+            else if (km >= 1e6) label = (km / 1e6).toFixed(1) + (lang === 'ko' ? '백만 km' : 'M km');
+            else label = Math.round(km).toLocaleString() + ' km';
+            text(label, x, y + 16);
+        }
+    }
+
+    // ================================================================
+    //  Section 7: 거리 눈금 (캔버스 위)
+    // ================================================================
+    function drawDistanceTicks() {
+        var interval = 50000;
+        var st = Math.floor(scroll.currentX / interval);
+        var et = Math.floor((scroll.currentX + width) / interval);
+
+        stroke(255, 255, 255, 12);
+        strokeWeight(0.5);
+
+        for (var ti = st; ti <= et; ti++) {
+            var wx = ti * interval;
+            var sx = wx - scroll.currentX;
+            line(sx, height / 2 - 25, sx, height / 2 + 25);
+        }
+    }
+
+    // ================================================================
+    //  Section 8: 인트로 시퀀스
+    // ================================================================
+    function drawIntro() {
+        if (scroll.currentX > 1200) return;
+
+        var alpha = map(scroll.currentX, 0, 1000, 255, 0);
+        if (alpha <= 0) return;
+
+        var cx = width / 2 - scroll.currentX * 0.5;
+        var lang = SsamBox.lang;
+
+        noStroke();
+        textAlign(CENTER, CENTER);
+
+        // 타이틀
+        fill(76, 201, 240, alpha);
+        textSize(28);
+        text(t('introTitle'), cx, height / 2 - 50);
+
+        // 서브타이틀
+        fill(255, 255, 255, alpha * 0.65);
+        textSize(16);
+        text(t('introSub'), cx, height / 2);
+
+        // 스크롤 안내 (펄스)
+        var pulse = sin(frameCount * 0.05) * 40 + 140;
+        fill(255, 255, 255, min(pulse, alpha * 0.45));
+        textSize(13);
+        text(t('introScroll'), cx, height / 2 + 50);
+
+        // 스케일 레퍼런스
+        fill(255, 255, 255, alpha * 0.35);
+        textSize(11);
+        text(t('introScale'), cx, height / 2 + 90);
+
+        // 달 레퍼런스 픽셀
+        var moonX = cx + 120;
+        var moonY = height / 2 + 90;
+        fill(255, 255, 255, alpha);
+        circle(moonX, moonY, 1);
+        fill(255, 255, 255, alpha * 0.4);
+        textAlign(LEFT, CENTER);
+        textSize(10);
+        text(t('introMoon'), moonX + 6, moonY);
+    }
+
+    // ================================================================
+    //  Section 9: DOM 오버레이 업데이트
+    // ================================================================
+    var currentInfoBody = null;
+
+    function updateMinimap() {
+        var mm = document.getElementById('ps-minimap');
+        var cv = document.getElementById('ps-minimap-canvas');
+        var vp = document.getElementById('ps-minimap-viewport');
+        if (!mm || !cv) return;
+
+        var w = mm.offsetWidth;
+        var h = mm.offsetHeight;
+        cv.width = w;
+        cv.height = h;
+
+        var ctx = cv.getContext('2d');
+        ctx.clearRect(0, 0, w, h);
+
+        var total = SCALE.totalUniverseWidth;
+        for (var i = 0; i < SOLAR_CONFIG.length; i++) {
+            var body = SOLAR_CONFIG[i];
+            var mx = (body.positionX / total) * w;
+            var dotR = body.id === 'sun' ? 4 : max(1.5, body.diameterPx * 0.03);
+            ctx.beginPath();
+            ctx.arc(mx, h / 2, dotR, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgb(' + body.color.join(',') + ')';
+            ctx.fill();
+        }
+
+        var vpLeft = (scroll.currentX / total) * w;
+        var vpW = max((width / total) * w, 4);
+        vp.style.left = vpLeft + 'px';
+        vp.style.width = vpW + 'px';
+    }
+
+    function updateRuler() {
+        var centerPx = scroll.currentX + width / 2;
+        var sunX = SOLAR_CONFIG[0].positionX;
+        var distPx = max(0, centerPx - sunX);
+
+        var km = SCALE.pxToKm(distPx);
+        var au = SCALE.pxToAU(distPx);
+        var trips = SCALE.pxToTrips(distPx);
+
+        document.getElementById('ps-ruler-km').textContent = t('fromSun') + formatNum(km) + ' km';
+        document.getElementById('ps-ruler-au').textContent = au.toFixed(2) + ' AU';
+        document.getElementById('ps-ruler-trips').textContent = t('seoulBusan') + formatNum(Math.round(trips)) + t('roundTrips');
+    }
+
+    function updateSpeedIndicator() {
+        var speed;
+        if (scroll.autoMode !== 'stopped' && scroll.autoMode !== 'warp') {
+            speed = SCALE.lightSpeedPxPerSec * scroll.autoSpeedMultiplier;
+        } else if (scroll.autoMode === 'warp') {
+            speed = abs(scroll.warpTarget - scroll.currentX - width / 2) * 0.06 * 60;
+        } else {
+            speed = abs(scroll.velocity) * 60;
+        }
+
+        var lang = SsamBox.lang;
+        var kmS = speed * SCALE.FACTOR;
+        var ratio = speed / SCALE.lightSpeedPxPerSec;
+
+        var valEl = document.getElementById('ps-speed-value');
+        var cmpEl = document.getElementById('ps-speed-comparison');
+
+        if (speed < 0.01) {
+            valEl.textContent = t('stopped');
+            cmpEl.textContent = '';
+        } else {
+            valEl.textContent = formatNum(kmS) + ' km/s';
+            if (ratio >= 1) {
+                cmpEl.textContent = (lang === 'ko' ? '광속의 ' : '') + formatNum(ratio) + (lang === 'ko' ? '배' : '× light');
+            } else {
+                cmpEl.textContent = (lang === 'ko' ? '광속의 ' : '') + (ratio * 100).toFixed(1) + '%' + (lang === 'ko' ? '' : ' light');
+            }
+        }
+    }
+
+    function updateInfoCard() {
+        var centerX = scroll.currentX + width / 2;
+        var nearest = null;
+        var nearDist = Infinity;
+
+        for (var i = 0; i < SOLAR_CONFIG.length; i++) {
+            var body = SOLAR_CONFIG[i];
+            var d = abs(centerX - body.positionX);
+            var threshold = body.id === 'sun' ? max(body.radiusPx + 100, 300) : max(body.diameterPx * 4, 200);
+            if (d < threshold && d < nearDist) {
+                nearest = body;
+                nearDist = d;
+            }
+        }
+
+        var card = document.getElementById('ps-info-card');
+        if (nearest && nearest !== currentInfoBody) {
+            currentInfoBody = nearest;
+            var lang = SsamBox.lang;
+            document.getElementById('ps-info-name').textContent = nearest.name[lang];
+            document.getElementById('ps-info-dot').style.background = 'rgb(' + nearest.color.join(',') + ')';
+            document.getElementById('ps-info-body').textContent = nearest.info[lang];
+            document.getElementById('ps-info-fun').textContent = nearest.funFact[lang];
+            card.classList.add('ps-info-card--visible');
+        } else if (!nearest && currentInfoBody) {
+            currentInfoBody = null;
+            card.classList.remove('ps-info-card--visible');
+        }
+    }
+
+    // ================================================================
+    //  Section 10: 엔딩 시퀀스
+    // ================================================================
+    var endingShown = false;
+
+    function checkEnding() {
+        if (endingShown) return;
+        var pluto = SOLAR_CONFIG[SOLAR_CONFIG.length - 1];
+        var centerX = scroll.currentX + width / 2;
+        if (centerX >= pluto.positionX - 50) {
+            endingShown = true;
+            setTimeout(showEnding, 1500);
+        }
+    }
+
+    function showEnding() {
+        document.getElementById('ps-ending-title').textContent = t('endTitle');
+        document.getElementById('ps-ending-text').textContent = t('endText');
+        document.getElementById('ps-ending-voyager').textContent = t('endVoyager');
+        document.getElementById('ps-ending-modal').classList.add('ps-ending-modal--visible');
+    }
+
+    // ================================================================
+    //  Section 11: 유틸리티
+    // ================================================================
+    function formatNum(n) {
+        var lang = SsamBox.lang;
+        if (n >= 1e9) return (n / 1e9).toFixed(1) + (lang === 'ko' ? '십억' : 'B');
+        if (n >= 1e6) return (n / 1e6).toFixed(1) + (lang === 'ko' ? '백만' : 'M');
+        if (n >= 1e4) return (n / 1e4).toFixed(1) + (lang === 'ko' ? '만' : '0k');
+        return Math.round(n).toLocaleString();
+    }
+
+    function applyI18n() {
+        var els = document.querySelectorAll('[data-i18n]');
+        els.forEach(function(el) { el.textContent = t(el.dataset.i18n); });
+    }
+
+    // ================================================================
+    //  Section 12: 유휴 감지
+    // ================================================================
+    var idleFrames = 0;
+    var isIdle = false;
+
+    function checkIdle() {
+        if (scroll.autoMode !== 'stopped' || abs(scroll.velocity) > 0.1) {
+            idleFrames = 0;
+            return;
+        }
+        idleFrames++;
+        if (idleFrames > 1800 && !isIdle) {
+            isIdle = true;
+            noLoop();
+        }
+    }
+
+    function wakeUp() {
+        if (isIdle) { isIdle = false; idleFrames = 0; loop(); }
+    }
+
+    ['mousedown', 'mousemove', 'wheel', 'keydown', 'touchstart'].forEach(function(evt) {
+        window.addEventListener(evt, wakeUp, { passive: true });
+    });
+
+    // ================================================================
+    //  Section 13: p5.js 진입점
+    // ================================================================
+    function setup() {
+        var sz = SsamBox.getOptimalCanvasSize(16, 9);
+        var canvas = createCanvas(sz.width, sz.height);
+        canvas.parent('ssambox-canvas-container');
+
+        SCALE.init();
+        precomputePositions();
+        applyI18n();
+
+        textFont('Noto Sans KR, sans-serif');
+
+        // 속도 버튼 이벤트
+        document.querySelectorAll('.ps-speed-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                setAutoMode(this.dataset.mode);
+            });
+        });
+
+        // 미니맵 클릭
+        document.getElementById('ps-minimap').addEventListener('click', function(e) {
+            var rect = this.getBoundingClientRect();
+            var ratio = (e.clientX - rect.left) / rect.width;
+            scroll.currentX = ratio * SCALE.totalUniverseWidth;
+            scroll.velocity = 0;
+            setAutoMode('stopped');
+        });
+
+        // 엔딩 재시작
+        document.getElementById('ps-ending-restart').addEventListener('click', function() {
+            document.getElementById('ps-ending-modal').classList.remove('ps-ending-modal--visible');
+            scroll.currentX = 0;
+            scroll.velocity = 0;
+            setAutoMode('stopped');
+            endingShown = false;
+            currentInfoBody = null;
+            document.getElementById('ps-info-card').classList.remove('ps-info-card--visible');
+        });
+    }
+
+    function draw() {
+        background(10, 10, 26);
+
+        processKeyInput();
+        updateScroll();
+
+        // 캔버스 레이어
+        drawStarField();
+        drawDistanceTicks();
+        drawSolarBodies();
+        drawIntro();
+
+        // DOM 업데이트 (쓰로틀)
+        if (frameCount % 3 === 0) {
+            updateMinimap();
+            updateRuler();
+            updateSpeedIndicator();
+            updateInfoCard();
+            checkEnding();
+        }
+
+        checkIdle();
+    }
+
+    // ================================================================
+    //  Section 14: p5.js 이벤트 핸들러
+    // ================================================================
+    function mouseWheel(event) {
+        if (scroll.autoMode !== 'stopped') {
+            setAutoMode('stopped');
+        }
+        scroll.velocity += event.delta * 0.5;
+        scroll.velocity = constrain(scroll.velocity, -scroll.maxManualSpeed, scroll.maxManualSpeed);
+        return false;
+    }
+
+    function mousePressed() {
+        if (mouseButton === LEFT) {
+            scroll.isDragging = true;
+            scroll.dragStartX = mouseX;
+            scroll.dragStartScrollX = scroll.currentX;
+            scroll.lastDragPositions = [{ x: mouseX, t: millis() }];
+            scroll.velocity = 0;
+            if (scroll.autoMode !== 'stopped') setAutoMode('stopped');
+        }
+    }
+
+    function mouseDragged() {
+        if (scroll.isDragging) {
+            var dx = mouseX - scroll.dragStartX;
+            scroll.currentX = scroll.dragStartScrollX - dx;
+            scroll.currentX = constrain(scroll.currentX, 0, SCALE.totalUniverseWidth - width);
+            scroll.lastDragPositions.push({ x: mouseX, t: millis() });
+            if (scroll.lastDragPositions.length > 5) scroll.lastDragPositions.shift();
+        }
+    }
+
+    function mouseReleased() {
+        if (scroll.isDragging) {
+            scroll.isDragging = false;
+            var pos = scroll.lastDragPositions;
+            if (pos.length >= 2) {
+                var first = pos[0];
+                var last = pos[pos.length - 1];
+                var dt = (last.t - first.t) / 1000;
+                if (dt > 0) {
+                    scroll.velocity = -(last.x - first.x) / dt / 60;
+                    scroll.velocity = constrain(scroll.velocity, -scroll.maxManualSpeed, scroll.maxManualSpeed);
+                }
+            }
+        }
+    }
+
+    function touchStarted() {
+        if (touches.length === 1) {
+            scroll.isDragging = true;
+            scroll.dragStartX = touches[0].x;
+            scroll.dragStartScrollX = scroll.currentX;
+            scroll.lastDragPositions = [{ x: touches[0].x, t: millis() }];
+            scroll.velocity = 0;
+            if (scroll.autoMode !== 'stopped') setAutoMode('stopped');
+        }
+        return false;
+    }
+
+    function touchMoved() {
+        if (scroll.isDragging && touches.length === 1) {
+            var dx = touches[0].x - scroll.dragStartX;
+            scroll.currentX = scroll.dragStartScrollX - dx;
+            scroll.currentX = constrain(scroll.currentX, 0, SCALE.totalUniverseWidth - width);
+            scroll.lastDragPositions.push({ x: touches[0].x, t: millis() });
+            if (scroll.lastDragPositions.length > 5) scroll.lastDragPositions.shift();
+        }
+        return false;
+    }
+
+    function touchEnded() {
+        if (scroll.isDragging) {
+            scroll.isDragging = false;
+            var pos = scroll.lastDragPositions;
+            if (pos.length >= 2) {
+                var first = pos[0];
+                var last = pos[pos.length - 1];
+                var dt = (last.t - first.t) / 1000;
+                if (dt > 0) {
+                    scroll.velocity = -(last.x - first.x) / dt / 60;
+                    scroll.velocity = constrain(scroll.velocity, -scroll.maxManualSpeed, scroll.maxManualSpeed);
+                }
+            }
+        }
+        return false;
+    }
+
+    function keyPressed() {
+        keysHeld[keyCode] = true;
+        if (key === ' ') {
+            if (scroll.autoMode === 'stopped') setAutoMode('light');
+            else setAutoMode('stopped');
+            return false;
+        }
+    }
+
+    function keyReleased() {
+        keysHeld[keyCode] = false;
+    }
+
+    function windowResized() {
+        var sz = SsamBox.getOptimalCanvasSize(16, 9);
+        resizeCanvas(sz.width, sz.height);
+    }
+    </script>
+</body>
+</html>
